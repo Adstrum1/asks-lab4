@@ -306,23 +306,33 @@ class MarkdownParser {
   static render(md, existingTitles = []) {
     if (!md) return "";
 
+    // Тимчасове збереження блоків коду та inline коду для запобігання пошкодженню синтаксису
+    const codePlaceholders = [];
     let html = md;
 
-    // 1. Екранування HTML-символів (захист від XSS)
+    // Блоки коду: ```lang \n code \n ```
+    html = html.replace(/```([a-zA-Z0-9_-]*)\r?\n([\s\S]*?)```/g, (match, lang, code) => {
+      const idx = codePlaceholders.length;
+      const escapedCode = code.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      codePlaceholders.push(`<pre><code class="language-${lang || 'text'}">${escapedCode.trim()}</code></pre>`);
+      return `%%CODE_BLOCK_${idx}%%`;
+    });
+
+    // Inline код: `code`
+    html = html.replace(/`([^`]+)`/g, (match, code) => {
+      const idx = codePlaceholders.length;
+      const escapedCode = code.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      codePlaceholders.push(`<code>${escapedCode}</code>`);
+      return `%%CODE_BLOCK_${idx}%%`;
+    });
+
+    // Екранування HTML-символів у звичайному тексті
     html = html
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;");
 
-    // 2. Блоки коду: ```lang \n code \n ```
-    html = html.replace(/```([a-zA-Z0-9_-]*)\r?\n([\s\S]*?)```/g, (match, lang, code) => {
-      return `<pre><code class="language-${lang}">${code.trim()}</code></pre>`;
-    });
-
-    // 3. Inline код: `code`
-    html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
-
-    // 4. Заголовки (# .. ######)
+    // Заголовки (# .. ######)
     html = html.replace(/^###### (.*$)/gim, "<h6>$1</h6>");
     html = html.replace(/^##### (.*$)/gim, "<h5>$1</h5>");
     html = html.replace(/^#### (.*$)/gim, "<h4>$1</h4>");
@@ -330,20 +340,20 @@ class MarkdownParser {
     html = html.replace(/^## (.*$)/gim, "<h2>$1</h2>");
     html = html.replace(/^# (.*$)/gim, "<h1>$1</h1>");
 
-    // 5. Горизонтальна лінія
+    // Горизонтальна лінія
     html = html.replace(/^---$/gim, "<hr>");
 
-    // 6. Цитати: > text
+    // Цитати: > text
     html = html.replace(/^\> (.*$)/gim, "<blockquote>$1</blockquote>");
 
-    // 7. Чекбокси завдань: - [ ] або - [x]
+    // Чекбокси завдань: - [ ] або - [x]
     html = html.replace(/^- \[x\] (.*$)/gim, '<li class="task-item"><input type="checkbox" checked disabled> <span>$1</span></li>');
     html = html.replace(/^- \[ \] (.*$)/gim, '<li class="task-item"><input type="checkbox" disabled> <span>$1</span></li>');
 
-    // 8. Марковані списки: - item або * item
+    // Марковані списки: - item або * item
     html = html.replace(/^[\*\-] (?!<input)(.*$)/gim, "<li>$1</li>");
 
-    // 9. Нумеровані списки: 1. item
+    // Нумеровані списки: 1. item
     html = html.replace(/^\d+\. (.*$)/gim, "<li>$1</li>");
 
     // Обгортка <li> в <ul>
@@ -353,7 +363,7 @@ class MarkdownParser {
     // Об'єднання сусідніх <ul>
     html = html.replace(/<\/ul>\s*<ul>/g, "");
 
-    // 10. Таблиці Markdown
+    // Таблиці Markdown
     html = html.replace(/(?:^\|.+?\|\r?\n)+/gm, (tableMatch) => {
       const rows = tableMatch.trim().split(/\r?\n/);
       if (rows.length < 2) return tableMatch;
@@ -363,7 +373,6 @@ class MarkdownParser {
 
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i].trim();
-        // Рядок розділювач |---|---|
         if (/^\|(\s*[-:]+[-| :]*)\|$/.test(row)) {
           isHeader = false;
           continue;
@@ -381,28 +390,41 @@ class MarkdownParser {
       return tableHtml;
     });
 
-    // 11. Жирний та курсив
+    // Жирний, курсив, закреслений
     html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
     html = html.replace(/__([^_]+)__/g, "<strong>$1</strong>");
     html = html.replace(/\*([^*]+)\*/g, "<em>$1</em>");
     html = html.replace(/_([^_]+)_/g, "<em>$1</em>");
     html = html.replace(/~~([^~]+)~~/g, "<del>$1</del>");
 
-    // 12. Стандартні посилання: [текст](url)
+    // Стандартні посилання: [текст](url)
     html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
 
-    // 13. Вікі-посилання: [[Назва нотатки]]
+    // Вікі-посилання: [[Назва нотатки]]
     html = html.replace(/\[\[(.*?)\]\]/g, (match, noteTitle) => {
-      const trimmedTitle = noteTitle.trim();
-      const exists = existingTitles.some(t => t.toLowerCase() === trimmedTitle.toLowerCase());
+      // Відновлюємо екрановані &amp; для точного співставлення заголовків
+      const cleanTitle = noteTitle
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .trim();
+
+      const exists = existingTitles.some(t => t.toLowerCase() === cleanTitle.toLowerCase());
+      const safeDisplay = cleanTitle.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
       if (exists) {
-        return `<a href="#" class="wikilink" data-target="${encodeURIComponent(trimmedTitle)}">[[${trimmedTitle}]]</a>`;
+        return `<a href="#" class="wikilink" data-target="${encodeURIComponent(cleanTitle)}">[[${safeDisplay}]]</a>`;
       } else {
-        return `<a href="#" class="wikilink missing" title="Нотатка ще не створена. Натисніть, щоб створити." data-target="${encodeURIComponent(trimmedTitle)}">[[${trimmedTitle}]] <small>(+)</small></a>`;
+        return `<a href="#" class="wikilink missing" title="Нотатка ще не створена. Натисніть, щоб створити." data-target="${encodeURIComponent(cleanTitle)}">[[${safeDisplay}]] <small>(+)</small></a>`;
       }
     });
 
-    // 14. Параграфи: подвійний перенос рядка
+    // Відновлення кодових блоків
+    html = html.replace(/%%CODE_BLOCK_(\d+)%%/g, (match, idx) => {
+      return codePlaceholders[Number(idx)] || "";
+    });
+
+    // Параграфи: подвійний перенос рядка
     const blocks = html.split(/\n\n+/);
     html = blocks.map(block => {
       block = block.trim();
