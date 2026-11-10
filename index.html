@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Second Brain — Навчальні нотатки (PKM)</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Сайдбар навігації PARA та тегів -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="brand">
+          <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7z"/>
+            <path d="M9 21h6"/>
+          </svg>
+          <div class="brand-text">
+            <h2>Second Brain</h2>
+            <span class="sub-text">Навчальний PKM</span>
+          </div>
+        </div>
+        <button id="btnNewNoteSidebar" class="btn btn-primary btn-block">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          Нова нотатка
+        </button>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-title">Категорії PARA</div>
+        <ul class="nav-list" id="categoryNav">
+          <li class="nav-item active" data-category="all">
+            <span class="nav-icon">📚</span>
+            <span class="nav-label">Всі нотатки</span>
+            <span class="badge" id="countAll">0</span>
+          </li>
+          <li class="nav-item" data-category="Inbox">
+            <span class="nav-icon">📥</span>
+            <span class="nav-label">Inbox</span>
+            <span class="badge" id="countInbox">0</span>
+          </li>
+          <li class="nav-item" data-category="Projects">
+            <span class="nav-icon">🚀</span>
+            <span class="nav-label">Projects</span>
+            <span class="badge" id="countProjects">0</span>
+          </li>
+          <li class="nav-item" data-category="Areas">
+            <span class="nav-icon">🎯</span>
+            <span class="nav-label">Areas</span>
+            <span class="badge" id="countAreas">0</span>
+          </li>
+          <li class="nav-item" data-category="Resources">
+            <span class="nav-icon">📦</span>
+            <span class="nav-label">Resources</span>
+            <span class="badge" id="countResources">0</span>
+          </li>
+          <li class="nav-item" data-category="Archives">
+            <span class="nav-icon">🗄️</span>
+            <span class="nav-label">Archives</span>
+            <span class="badge" id="countArchives">0</span>
+          </li>
+        </ul>
+
+        <div class="nav-section-title">Теги</div>
+        <div class="tags-cloud" id="tagsCloud">
+          <!-- Генерується через JS -->
+        </div>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="storage-actions">
+          <button id="btnExportJson" class="btn btn-ghost btn-sm" title="Експортувати всі нотатки у JSON">
+            <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            Експорт JSON
+          </button>
+          <label class="btn btn-ghost btn-sm" title="Імпортувати JSON або Markdown файл" style="cursor: pointer;">
+            <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+            Імпорт
+            <input type="file" id="fileImportInput" accept=".json,.md" style="display: none;">
+          </label>
+        </div>
+        <button id="btnResetDemo" class="btn-link-subtle" title="Скинути до стандартних прикладів">Відновити приклади</button>
+      </div>
+    </aside>
+
+    <!-- Список нотаток (середня панель) -->
+    <section class="notes-list-panel">
+      <div class="panel-header">
+        <div class="search-box">
+          <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" id="searchInput" placeholder="Пошук нотаток, тегів, тексту..." autocomplete="off">
+          <button id="btnClearSearch" class="btn-clear" style="display: none;">✕</button>
+        </div>
+        <div class="filter-status-bar" id="activeFilterBadge" style="display: none;">
+          <span id="activeFilterText">Фільтр:</span>
+          <button id="btnResetFilter" class="btn-reset-filter" title="Очистити фільтр">✕</button>
+        </div>
+      </div>
+
+      <div class="notes-list-scroll" id="notesListContainer">
+        <!-- Картки нотаток генеруються тут -->
+      </div>
+    </section>
+
+    <!-- Основна робоча панель: Перегляд / Редагування -->
+    <main class="note-workspace" id="noteWorkspace">
+      <!-- Порожній стан -->
+      <div class="empty-state" id="emptyState" style="display: none;">
+        <div class="empty-illustration">📝</div>
+        <h3>Оберіть нотатку для перегляду</h3>
+        <p>або створіть нову навчальну нотатку з шаблону</p>
+        <button id="btnCreateFirstNote" class="btn btn-primary">Створити нотатку</button>
+      </div>
+
+      <!-- Режим перегляду нотатки (Reading Mode) -->
+      <article class="note-viewer" id="noteViewer">
+        <div class="note-toolbar">
+          <div class="toolbar-left">
+            <span class="badge badge-para" id="viewCategoryBadge">Inbox</span>
+            <span class="badge badge-status" id="viewStatusBadge">Чернетка</span>
+            <span class="badge badge-type" id="viewTypeBadge">Конспект</span>
+          </div>
+          <div class="toolbar-right">
+            <button id="btnEditNote" class="btn btn-secondary">
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
+                <path d="M12 20h9"></path>
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+              </svg>
+              Редагувати
+            </button>
+            <button id="btnDownloadMd" class="btn btn-ghost" title="Завантажити як .md файл">
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              .md
+            </button>
+            <button id="btnDeleteNote" class="btn btn-danger-ghost" title="Видалити нотатку">
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <header class="note-viewer-header">
+          <h1 id="viewTitle">Заголовок нотатки</h1>
+          <div class="note-viewer-meta">
+            <span class="meta-item">
+              <strong>Створено:</strong> <time id="viewCreated">—</time>
+            </span>
+            <span class="meta-item">
+              <strong>Оновлено:</strong> <time id="viewUpdated">—</time>
+            </span>
+          </div>
+          <div class="view-tags-container" id="viewTagsContainer">
+            <!-- Теги -->
+          </div>
+        </header>
+
+        <div class="markdown-body" id="viewMarkdownBody">
+          <!-- Відрендерений Markdown вміст -->
+        </div>
+
+        <!-- Секція зв'язків: Вихідні посилання та Backlinks -->
+        <section class="links-panel" id="linksPanel">
+          <div class="links-columns">
+            <div class="links-block">
+              <h3>
+                <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
+                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                </svg>
+                Вихідні посилання <span class="counter" id="outgoingCount">(0)</span>
+              </h3>
+              <div class="links-list" id="outgoingLinksList"></div>
+            </div>
+
+            <div class="links-block">
+              <h3>
+                <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
+                  <path d="M9 17H7A5 5 0 0 1 7 7h2"></path>
+                  <path d="M15 7h2a5 5 0 1 1 0 10h-2"></path>
+                  <line x1="8" y1="12" x2="16" y2="12"></line>
+                </svg>
+                Зворотні посилання (Backlinks) <span class="counter" id="backlinksCount">(0)</span>
+              </h3>
+              <div class="links-list" id="backlinksList"></div>
+            </div>
+          </div>
+        </section>
+      </article>
+
+      <!-- Режим редагування / створення нотатки (Edit Mode) -->
+      <div class="note-editor" id="noteEditor" style="display: none;">
+        <div class="note-toolbar">
+          <div class="toolbar-left">
+            <span class="mode-badge" id="editorModeLabel">Створення нотатки</span>
+          </div>
+          <div class="toolbar-right">
+            <button id="btnToggleRawMode" class="btn btn-ghost" title="Перемкнути режим форми / чистий Markdown з YAML frontmatter">
+              YAML / Форма
+            </button>
+            <button id="btnCancelEdit" class="btn btn-secondary">Скасувати</button>
+            <button id="btnSaveNote" class="btn btn-primary">Зберегти</button>
+          </div>
+        </div>
+
+        <!-- Стандартна форма з полями -->
+        <form id="noteForm" class="editor-form">
+          <div class="form-row">
+            <div class="form-group form-group-grow">
+              <label for="editTitle">Заголовок нотатки *</label>
+              <input type="text" id="editTitle" placeholder="Введіть заголовок нотатки..." required>
+            </div>
+            <div class="form-group">
+              <label for="editCategory">Категорія PARA</label>
+              <select id="editCategory">
+                <option value="Inbox">Inbox (Вхідні)</option>
+                <option value="Projects">Projects (Проєкти)</option>
+                <option value="Areas">Areas (Сфери)</option>
+                <option value="Resources">Resources (Ресурси)</option>
+                <option value="Archives">Archives (Архів)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="editStatus">Статус</label>
+              <div class="custom-select-wrapper">
+                <select id="editStatusSelect">
+                  <option value="Чернетка">Чернетка</option>
+                  <option value="В процесі">В процесі</option>
+                  <option value="Завершено">Завершено</option>
+                  <option value="В архіві">В архіві</option>
+                  <option value="__custom__">Власний варіант...</option>
+                </select>
+                <input type="text" id="editStatusCustom" placeholder="Власний статус" style="display: none;">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="editType">Тип нотатки</label>
+              <div class="custom-select-wrapper">
+                <select id="editTypeSelect">
+                  <option value="Конспект">Конспект</option>
+                  <option value="Поняття">Поняття</option>
+                  <option value="Література">Література</option>
+                  <option value="Завдання">Завдання</option>
+                  <option value="Резюме">Резюме</option>
+                  <option value="__custom__">Власний варіант...</option>
+                </select>
+                <input type="text" id="editTypeCustom" placeholder="Власний тип" style="display: none;">
+              </div>
+            </div>
+
+            <div class="form-group form-group-grow">
+              <label for="editTags">Теги (через кому)</label>
+              <input type="text" id="editTags" placeholder="навчання, алгоритми, іспит">
+            </div>
+          </div>
+
+          <div class="editor-content-area">
+            <div class="content-tabs">
+              <span class="active">Текст Markdown (підтримує [[Назва нотатки]])</span>
+              <div class="editor-quick-buttons">
+                <button type="button" class="btn-tool" data-wrap="**" title="Жирний"><b>B</b></button>
+                <button type="button" class="btn-tool" data-wrap="*" title="Курсив"><i>I</i></button>
+                <button type="button" class="btn-tool" data-wrap="`" title="Код">&lt;&gt;</button>
+                <button type="button" class="btn-tool" data-prefix="## " title="Заголовок H2">H2</button>
+                <button type="button" class="btn-tool" data-prefix="- [ ] " title="Чекбокс завдання">☑</button>
+                <button type="button" class="btn-tool" data-wrap="[[|]]" title="Вікі-посилання">[[...]]</button>
+              </div>
+            </div>
+            <div class="split-editor-container">
+              <textarea id="editContent" class="editor-textarea" placeholder="Пишіть Markdown тут. Використовуйте [[Назва нотатки]] для зв'язків між нотатками..."></textarea>
+              <div class="editor-live-preview markdown-body" id="editorLivePreview"></div>
+            </div>
+          </div>
+        </form>
+
+        <!-- Альтернативний режим: сирий Markdown з YAML Frontmatter -->
+        <div id="rawYamlEditorContainer" class="raw-editor-container" style="display: none;">
+          <div class="raw-help">
+            Повний файл Markdown із YAML frontmatter. Всі метадані зберігаються у блоці між <code>---</code>.
+          </div>
+          <textarea id="rawYamlContent" class="raw-textarea" spellcheck="false"></textarea>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Діалог підтвердження / сповіщення -->
+  <div id="notificationToast" class="notification-toast"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
